@@ -5,7 +5,7 @@ import operatorImg from '../../../assets/8bff0e9c8e75280c706ba071ac18c3e825858a6
 import trendingImg from '../../../assets/095f4d4c301603c5d35bfdb7025dc66c31bbe3f9.png';
 import { getAggregatedStats, getRecentSessions } from '../../api/activityApi';
 import {
-  LineChart, Line, PieChart, Pie, Cell,
+  LineChart, Line, PieChart, Pie, Cell, BarChart, Bar,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
 } from 'recharts';
 import {
@@ -75,12 +75,13 @@ const rejectionReasons = [
 ];
 
 const StatCard = ({
-  title, value, subtitle, icon: Icon, iconBg, iconColor, trend, trendValue, accentColor
+  title, value, subtitle, icon: Icon, iconBg, iconColor, trend, trendValue, accentColor, onClick, clickable
 }: {
   title: string; value: string; subtitle: string; icon: any;
   iconBg: string; iconColor: string; trend?: 'up' | 'down'; trendValue?: string; accentColor?: string;
+  onClick?: () => void; clickable?: boolean;
 }) => (
-  <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-100 hover:shadow-md transition-shadow relative overflow-hidden">
+  <div onClick={onClick} className={`bg-white rounded-xl p-5 shadow-sm border border-gray-100 hover:shadow-md transition-shadow relative overflow-hidden ${clickable ? 'cursor-pointer' : ''}`}>
     <div className="absolute top-0 left-0 w-1 h-full rounded-l-xl" style={{ backgroundColor: accentColor || '#1e3a5f' }}/>
     <div className="flex items-start justify-between mb-3">
       <div className="p-2.5 rounded-lg" style={{ backgroundColor: iconBg }}>
@@ -209,6 +210,51 @@ export default function DashboardOverview() {
   const [refreshing, setRefreshing] = useState(false);
   const [stats, setStats] = useState<Awaited<ReturnType<typeof getAggregatedStats>> | null>(null);
   const [operatorSessions, setOperatorSessions] = useState<Awaited<ReturnType<typeof getRecentSessions>>>([]);
+  const [showRejectionDrill, setShowRejectionDrill] = useState(false);
+  const [selectedDistrict, setSelectedDistrict] = useState<string | null>(null);
+
+  const TOTAL_SAMPLE = 1243;
+  const totalWarnings = USE_SAMPLE_DATA(stats) ? TOTAL_SAMPLE : (stats!.totalWarnings ?? TOTAL_SAMPLE);
+
+  const sampleDistricts = [
+    { district: 'Bengaluru Urban', count: 420 },
+    { district: 'Mysuru', count: 220 },
+    { district: 'Belagavi', count: 175 },
+    { district: 'Hubballi-Dharwad', count: 120 },
+    { district: 'Tumakuru', count: 95 },
+    { district: 'Other', count: 213 },
+  ];
+
+  const sampleOperators = [
+    { operator: 'Op-01', district: 'Bengaluru Urban', count: 150 },
+    { operator: 'Op-02', district: 'Bengaluru Urban', count: 130 },
+    { operator: 'Op-03', district: 'Bengaluru Urban', count: 140 },
+    { operator: 'Op-04', district: 'Mysuru', count: 120 },
+    { operator: 'Op-05', district: 'Mysuru', count: 100 },
+    { operator: 'Op-06', district: 'Belagavi', count: 95 },
+    { operator: 'Op-07', district: 'Belagavi', count: 80 },
+    { operator: 'Op-08', district: 'Hubballi-Dharwad', count: 70 },
+    { operator: 'Op-09', district: 'Hubballi-Dharwad', count: 50 },
+    { operator: 'Op-10', district: 'Tumakuru', count: 55 },
+    { operator: 'Op-11', district: 'Tumakuru', count: 40 },
+    { operator: 'Op-12', district: 'Other', count: 60 },
+    { operator: 'Op-13', district: 'Other', count: 153 },
+  ];
+
+  function scaleArrayToTotal<T extends { count: number }>(arr: T[], total: number): T[] {
+    const sum = arr.reduce((s, a) => s + a.count, 0) || 1;
+    const factor = total / sum;
+    const scaled = arr.map(a => ({ ...a, count: Math.max(0, Math.round(a.count * factor)) }));
+    const scaledSum = scaled.reduce((s, a) => s + a.count, 0);
+    const diff = total - scaledSum;
+    if (diff !== 0 && scaled.length > 0) {
+      scaled[scaled.length - 1] = { ...scaled[scaled.length - 1], count: scaled[scaled.length - 1].count + diff };
+    }
+    return scaled;
+  }
+
+  const districtData = USE_SAMPLE_DATA(stats) ? sampleDistricts : scaleArrayToTotal(sampleDistricts, totalWarnings);
+  const operatorData = USE_SAMPLE_DATA(stats) ? sampleOperators : scaleArrayToTotal(sampleOperators, totalWarnings);
 
   const loadData = async () => {
     try {
@@ -461,6 +507,11 @@ export default function DashboardOverview() {
           trend={USE_SAMPLE_DATA(stats) ? 'down' : undefined}
           trendValue={USE_SAMPLE_DATA(stats) ? '-4.1%' : undefined}
           accentColor="#FF9933"
+          clickable
+          onClick={() => {
+            setSelectedDistrict(null);
+            setShowRejectionDrill(s => !s);
+          }}
         />
         <StatCard
           title="Active CSC Operators"
@@ -474,6 +525,64 @@ export default function DashboardOverview() {
           accentColor="#0c2461"
         />
       </div>
+
+      {showRejectionDrill && (
+        <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-100 transition-all">
+          <div className="flex items-center justify-between mb-3">
+            <div>
+              <h3 style={{ color: '#0c2461' }}>Rejection Warnings — Breakdown</h3>
+              <p className="text-xs text-gray-500 mt-0.5">Drill-down by district and operator (click bars to filter)</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <button onClick={() => { setShowRejectionDrill(false); }} className="text-xs px-2 py-1 rounded border" style={{ borderColor: '#d1d5db' }}>Close</button>
+              <div className="text-sm text-gray-600">Total: <span className="font-semibold" style={{ color: '#ea580c' }}>{totalWarnings.toLocaleString()}</span></div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+            <div className="lg:col-span-2 bg-white p-3 rounded border border-gray-100">
+              <ResponsiveContainer width="100%" height={220}>
+                <BarChart data={districtData} margin={{ top: 10, right: 20, left: 0, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9"/>
+                  <XAxis dataKey="district" tick={{ fontSize: 12, fill: '#94a3b8' }} tickLine={false} axisLine={false}/>
+                  <YAxis tick={{ fontSize: 11, fill: '#94a3b8' }} tickFormatter={v => v.toLocaleString()} tickLine={false} axisLine={false}/>
+                  <Tooltip content={<CustomTooltip/>}/>
+                  <Bar dataKey="count" onClick={(d) => setSelectedDistrict(d?.payload?.district)} isAnimationActive={false}>
+                    {districtData.map((entry, idx) => (
+                      <Cell key={`cell-${idx}`} fill={entry.district === selectedDistrict ? '#1a4592' : '#FF9933'} cursor="pointer"/>
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+              <div className="flex items-center gap-3 mt-2 text-xs text-gray-500 justify-center">
+                <div className="flex items-center gap-1"><span className="w-3 h-0.5 bg-[#FF9933] inline-block rounded"/><span>Rejections by District</span></div>
+              </div>
+            </div>
+
+            <div className="lg:col-span-1 bg-white p-3 rounded border border-gray-100 overflow-auto" style={{ maxHeight: 260 }}>
+              <div className="text-sm font-medium mb-2">Operators {selectedDistrict ? `in ${selectedDistrict}` : ''}</div>
+              <table className="w-full text-sm table-fixed">
+                <thead>
+                  <tr className="text-xs text-gray-500 border-b">
+                    <th className="text-left py-2">Operator</th>
+                    <th className="text-right py-2">District</th>
+                    <th className="text-right py-2">Warnings</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {operatorData.filter(o => !selectedDistrict || o.district === selectedDistrict).map((op, i) => (
+                    <tr key={i} className="border-b bg-white">
+                      <td className="py-2 text-gray-700">{op.operator}</td>
+                      <td className="py-2 text-right text-gray-600">{op.district}</td>
+                      <td className="py-2 text-right font-semibold" style={{ color: '#ea580c' }}>{op.count}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Charts Row 1 */}
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
