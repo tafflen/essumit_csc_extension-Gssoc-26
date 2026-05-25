@@ -91,9 +91,30 @@ export default function DocumentChecklist() {
     }
   };
 
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const MAX_FILE_SIZE = 16 * 1024 * 1024; // 16MB
+  const ALLOWED_EXTENSIONS = ['pdf', 'png', 'jpg', 'jpeg', 'tiff', 'bmp'];
+
   const handleFileSelected = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file || !pendingDocId) {
+      return;
+    }
+
+    // Validate file type
+    const ext = file.name.split('.').pop()?.toLowerCase();
+    if (!ext || !ALLOWED_EXTENSIONS.includes(ext)) {
+      setUploadError(`Invalid file type: .${ext}. Allowed: ${ALLOWED_EXTENSIONS.join(', ')}`);
+      event.target.value = '';
+      setPendingDocId(null);
+      return;
+    }
+
+    // Validate file size
+    if (file.size > MAX_FILE_SIZE) {
+      setUploadError(`File size exceeds 16MB limit (${Math.round(file.size / (1024 * 1024))}MB). Please select a smaller file.`);
+      event.target.value = '';
+      setPendingDocId(null);
       return;
     }
 
@@ -117,6 +138,7 @@ export default function DocumentChecklist() {
     // Clear input so same file can be selected again if needed
     event.target.value = '';
     setPendingDocId(null);
+    setUploadError(null);
   };
 
   const mandatoryCount = documents.filter(d => d.mandatory).length;
@@ -282,6 +304,20 @@ export default function DocumentChecklist() {
         nextLabel={allMandatoryComplete ? 'आगे बढ़ें' : `${mandatoryCount - completedMandatoryCount} दस्तावेज़ शेष`}
       />
 
+      {/* Upload error message */}
+      {uploadError && (
+        <div className="px-4 mb-2">
+          <div className="bg-red-50 border border-risk-red rounded-md p-2 text-xs text-risk-red flex items-center justify-between">
+            <span>{uploadError}</span>
+            <button
+              className="ml-3 px-2 py-0.5 bg-navy text-white rounded text-xs hover:bg-navy-dark transition"
+              onClick={() => setUploadError(null)}
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      )}
       {/* Hidden file input used for all Upload buttons */}
       <input
         ref={fileInputRef}

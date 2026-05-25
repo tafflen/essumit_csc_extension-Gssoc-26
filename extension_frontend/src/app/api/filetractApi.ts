@@ -35,18 +35,36 @@ async function uploadFiles(files: File[]): Promise<string[]> {
   const formData = new FormData();
   files.forEach((file) => formData.append('files', file, file.name));
 
-  const resp = await fetch(`${API_BASE_URL}/api/upload`, {
-    method: 'POST',
-    body: formData,
-  });
-  if (!resp.ok) {
+  let resp: Response;
+  try {
+    resp = await fetch(`${API_BASE_URL}/api/upload`, {
+      method: 'POST',
+      body: formData,
+    });
+  } catch (err) {
+    throw new Error('Network error: Unable to reach the document extraction server. Please check your connection.');
+  }
+  let data: any = null;
+  try {
+    data = await resp.json();
+  } catch (err) {
+    // If not JSON, fallback to status text
     throw new Error(`Upload failed: ${resp.status} ${resp.statusText}`);
   }
-  const data = await resp.json();
+  if (!resp.ok) {
+    // Backend returns { error: ... }
+    if (data && data.error) {
+      throw new Error(data.error);
+    }
+    throw new Error(`Upload failed: ${resp.status} ${resp.statusText}`);
+  }
   if (Array.isArray(data.jobs)) {
     return data.jobs.map((j: any) => j.job_id);
   }
-  return data.job_id ? [data.job_id] : [];
+  if (data.job_id) {
+    return [data.job_id];
+  }
+  throw new Error('Unknown upload error: No job ID returned.');
 }
 
 async function startExtraction(jobIds: string[], fields: string[]): Promise<void> {

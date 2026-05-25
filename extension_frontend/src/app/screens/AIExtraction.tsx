@@ -19,6 +19,7 @@ export default function AIExtraction() {
   const service = serviceId ? getServiceById(serviceId) : null;
   const [currentFileIndex, setCurrentFileIndex] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  const [retryKey, setRetryKey] = useState(0);
 
   const fileList = files && Array.isArray(files) ? files : [];
   const currentFileName = fileList[currentFileIndex]?.name || '';
@@ -74,15 +75,26 @@ export default function AIExtraction() {
         });
       } catch (e: unknown) {
         if (cancelled) return;
-        console.error('[AIExtraction] Extraction error', e);
-        setError('दस्तावेज़ से जानकारी निकालने में समस्या आई। कृपया बाद में फिर कोशिश करें।');
+        let msg = 'दस्तावेज़ से जानकारी निकालने में समस्या आई। कृपया बाद में फिर कोशिश करें।';
+        if (typeof e === 'object' && e && 'message' in e) {
+          msg = (e as any).message;
+        } else if (typeof e === 'string') {
+          msg = e;
+        }
+        setError(msg);
+        if (process.env.NODE_ENV === 'development') {
+          // Log full error in dev
+          // eslint-disable-next-line no-console
+          console.error('[AIExtraction] Extraction error', e);
+        }
       }
     })();
 
     return () => {
       cancelled = true;
     };
-  }, [fileList, service, navigate, name, mobile, serviceId, formFieldKeys, formScannedFieldsFromState, formTabIdFromState]);
+    // retryKey ensures effect re-runs on retry
+  }, [fileList, service, navigate, name, mobile, serviceId, formFieldKeys, formScannedFieldsFromState, formTabIdFromState, retryKey]);
 
   // Cycle through file names during loading
   useEffect(() => {
@@ -108,6 +120,17 @@ export default function AIExtraction() {
         <div className="px-4 mb-3">
           <div className="bg-red-50 border border-risk-red rounded-md p-3 text-xs text-risk-red">
             {error}
+            <div className="mt-2 flex gap-2">
+              <button
+                className="px-3 py-1 bg-navy text-white rounded text-xs hover:bg-navy-dark transition"
+                onClick={() => {
+                  setError(null);
+                  setRetryKey((k) => k + 1);
+                }}
+              >
+                पुनः प्रयास करें / Retry
+              </button>
+            </div>
           </div>
         </div>
       )}
