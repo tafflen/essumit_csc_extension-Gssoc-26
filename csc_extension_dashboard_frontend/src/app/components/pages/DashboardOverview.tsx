@@ -283,12 +283,31 @@ export default function DashboardOverview() {
   };
 
   const handleExport = () => {
-    toast.promise(
-      new Promise((resolve) => setTimeout(resolve, 2000)),
-      {
-        loading: 'Preparing export...',
-        success: 'Dashboard data exported successfully!',
-        error: 'Failed to export data',
+  toast.promise(
+    new Promise((resolve) => {
+      const headers = ['Metric', 'Value'];
+      const rows = [
+        ['Total Applications', '1,24,567'],
+        ['Acceptance Rate', '78.4%'],
+        ['Rejection Warnings', '1,243'],
+        ['Active CSC Operators', '2,891'],
+        ['Top Service', 'Birth Certificate'],
+        ['Export Date', new Date().toLocaleDateString()],
+      ];
+      const csv = [headers, ...rows].map(r => r.join(',')).join('\n');
+      const blob = new Blob([csv], { type: 'text/csv' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `dashboard-export-${new Date().toISOString().slice(0,10)}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+      setTimeout(resolve, 1000);
+    }),
+    {
+      loading: 'Preparing export...',
+      success: 'Dashboard data exported successfully!',
+      error: 'Failed to export data',
       }
     );
   };
