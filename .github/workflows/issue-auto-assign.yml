@@ -1,0 +1,43 @@
+name: Auto Assign and Label Issues
+on:
+  issues:
+    types: [opened]
+
+permissions:
+  issues: write
+
+jobs:
+  auto-assign:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Auto assign to issue author and add labels
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const issueNumber = context.issue.number;
+            const author = context.payload.issue.user.login;
+            const contributingUrl = `https://github.com/${owner}/${repo}/blob/main/CONTRIBUTING.md`;
+
+            await github.rest.issues.addAssignees({
+              owner,
+              repo,
+              issue_number: issueNumber,
+              assignees: [author]
+            });
+
+            await github.rest.issues.addLabels({
+              owner,
+              repo,
+              issue_number: issueNumber,
+              labels: ["gssoc'26", "gssoc:approved", "status: needs triage"]
+            });
+
+            await github.rest.issues.createComment({
+              owner,
+              repo,
+              issue_number: issueNumber,
+              body: `Hey @${author}! 👋\n\nThanks for opening this issue — you've been auto-assigned to it.\n\n**Before you start coding:**\n- Make sure no existing issue already covers this\n- Read the [Contributing Guidelines](${contributingUrl})\n- Link your PR to this issue with \`Fixes #${issueNumber}\`\n- Attach a demo video for UI changes\n\n🕑 Issues with no progress for 7 days may be reassigned.\n\nGood luck! 🚀`
+            });
