@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router';
 import { Eye, EyeOff, Shield, Lock, User } from 'lucide-react';
 import { AshokChakra } from '../components/AshokChakra';
 const bannerImg = '/slider8.jpg.jpeg';
+import { useEffect } from 'react';
+import { RefreshCw } from 'lucide-react';
 
 export function LoginPage() {
   const navigate = useNavigate();
@@ -12,11 +14,46 @@ export function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
+  const generateCaptcha = () => {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  return Array.from({length: 6}, () => 
+    chars[Math.floor(Math.random() * chars.length)]).join('');
+  };
+
+  const [captchaCode, setCaptchaCode] = useState(generateCaptcha);
+  const [captchaInput, setCaptchaInput] = useState('');
+  const [captchaError, setCaptchaError] = useState('');
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError('');
     await new Promise((r) => setTimeout(r, 1200));
+
+  if (!captchaInput) {
+  setCaptchaError('Please enter the captcha');
+  setLoading(false);
+  return;
+  }
+  if (captchaInput.toUpperCase() !== captchaCode) {
+    setCaptchaError('Incorrect captcha. Please try again.');
+    setCaptchaCode(generateCaptcha());
+    setCaptchaInput('');
+    setLoading(false);
+    return;
+  }
+
+  if (!operatorId) {
+    setError('Please enter your Operator ID.');
+    setLoading(false);
+    return;
+  }
+
+  if (!password) {
+    setError('Please enter your password.');
+    setLoading(false);
+    return;
+  }
     if (operatorId === 'OP-4521' || operatorId.length > 0) {
       navigate('/app');
     } else {
@@ -208,10 +245,12 @@ export function LoginPage() {
                     userSelect: 'none',
                   }}
                 >
-                  X4K9P2
+                  {captchaCode}
                 </div>
                 <input
                   type="text"
+                  value={captchaInput}
+                  onChange={(e) => setCaptchaInput(e.target.value)}
                   placeholder="कैप्चा दर्ज करें"
                   className="flex-1 py-3 px-3 border rounded-lg focus:outline-none"
                   style={{ borderColor: '#D8DDE8', fontSize: '15px' }}
