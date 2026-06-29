@@ -26,6 +26,14 @@ export function GovHeader({ isLoggedIn = false, operatorName = 'राजेश 
   document.documentElement.style.fontSize = sizes[fontSize];
 }, [fontSize]);
 
+  useEffect(() => {
+  if (highContrast) {
+    document.documentElement.classList.add('high-contrast');
+  } else {
+    document.documentElement.classList.remove('high-contrast');
+  }
+  }, [highContrast]);
+
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -246,6 +254,15 @@ export function GovHeader({ isLoggedIn = false, operatorName = 'राजेश 
           @keyframes marquee {
             0% { transform: translateX(100%); }
             100% { transform: translateX(-100%); }
+          }
+          .high-contrast {
+            filter: contrast(150%) brightness(90%);
+            background: #000 !important;
+            color: #fff !important;
+          }
+          .high-contrast body {
+            background: #000 !important;
+            color: #fff !important;
           }
         `}</style>
       </div>
